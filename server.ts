@@ -527,11 +527,8 @@ seedData();
 // --------------------------------------------------------------------
 // Express Server Setup
 // --------------------------------------------------------------------
-async function startServer() {
-  const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-
-  app.use(express.json());
+export const app = express();
+app.use(express.json());
 
   // 1. Organization & Reference Endpoints
   app.get('/api/orgs', (req, res) => {
@@ -1654,31 +1651,38 @@ async function startServer() {
   app.use('/static', express.static(path.join(__dirname, 'static')));
   app.use('/pages', express.static(path.join(__dirname, 'pages')));
 
-  // 13. Vite SPA Handling
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.join(__dirname, 'dist')));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  export async function startServer() {
+    const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+
+    // 13. Vite SPA Handling
+    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else if (!process.env.VERCEL) {
+      app.use(express.static(path.join(__dirname, 'dist')));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+      });
+    }
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`========================================================`);
+      console.log(` JanaDhwani Full-Stack Portal Live on Port ${PORT}`);
+      console.log(` Mode: ${process.env.NODE_ENV || 'development'}`);
+      console.log(` In-Process Grievance Engine: ACTIVE`);
+      console.log(` Seeded Records: ${complaints.length} complaints, ${auditLog.length} audit blocks`);
+      console.log(`========================================================`);
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`========================================================`);
-    console.log(` JanaDhwani Full-Stack Portal Live on Port ${PORT}`);
-    console.log(` Mode: ${process.env.NODE_ENV || 'development'}`);
-    console.log(` In-Process Grievance Engine: ACTIVE`);
-    console.log(` Seeded Records: ${complaints.length} complaints, ${auditLog.length} audit blocks`);
-    console.log(`========================================================`);
-  });
-}
+  export default app;
 
-startServer().catch((err) => {
-  console.error('Fatal server startup error:', err);
-  process.exit(1);
-});
+  if (process.env.VERCEL !== '1' && !process.env.IS_VERCEL) {
+    startServer().catch((err) => {
+      console.error('Fatal server startup error:', err);
+      process.exit(1);
+    });
+  }
